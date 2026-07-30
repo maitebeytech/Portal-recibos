@@ -108,6 +108,17 @@
   .btnrow button{width:auto;}
   .logout{background:none;border:none;color:var(--slate);font-size:12.5px;text-decoration:underline;cursor:pointer;padding:0;width:auto;font-weight:400;}
 
+  .switch-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);}
+  .switch-row:last-child{border-bottom:none;}
+  .switch-label{font-size:14px;color:var(--navy);font-weight:600;}
+  .switch-desc{font-size:12.5px;color:var(--slate);margin-top:2px;}
+  .switch{position:relative;width:42px;height:24px;flex-shrink:0;}
+  .switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1;}
+  .switch .track{position:absolute;inset:0;background:var(--line);border-radius:20px;transition:.15s;}
+  .switch .track:before{content:'';position:absolute;width:18px;height:18px;top:3px;left:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .switch input:checked + .track{background:var(--blue);}
+  .switch input:checked + .track:before{transform:translateX(18px);}
+
   .chiplist{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
   .chip{background:var(--blue-light);color:var(--navy);font-size:12.5px;padding:3px 6px 3px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
   .chip-x{background:none;border:none;color:var(--slate);font-size:14px;line-height:1;cursor:pointer;padding:0 2px;width:auto;font-weight:700;}
@@ -260,34 +271,31 @@
         <button class="btn-primary" id="guardarUsuarioBtn" style="width:auto;">Guardar usuario</button>
       </div>
 
-      <div class="card" id="empleadosPanel" data-view="empleados" style="display:none;">
+      <div class="card" id="empleadosVerPanel" data-view="empleados-ver" style="display:none;">
         <h2>Empleados</h2>
-        <p class="sub" id="empleadosSubtitulo">Empleados de la empresa en la que estás trabajando.</p>
-
-        <div id="companyConfigPanel" style="display:none;background:var(--blue-light);border-radius:10px;padding:14px 16px;margin:14px 0;">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-            <input type="checkbox" id="companyBloqueoToggle" style="width:auto;margin:0;">
-            <label for="companyBloqueoToggle" style="margin:0;font-weight:400;">Bloquear recibo siguiente si no firmó</label>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <label style="margin:0;font-weight:400;">Aviso automático a los</label>
-            <input type="number" id="companyDiasAviso" min="0" style="width:64px;margin:0;padding:6px;">
-            <label style="margin:0;font-weight:400;">días sin firmar (0 = desactivado)</label>
-          </div>
-        </div>
+        <p class="sub">Solo datos — el estado de los recibos está en la sección Recibos.</p>
 
         <div class="err" id="empleadoErr"></div>
         <table>
-          <thead><tr><th>Nombre</th><th>CUIL</th><th>Mail</th><th>Recibo</th><th></th></tr></thead>
-          <tbody id="empleadosBody"></tbody>
+          <thead><tr><th>Nombre</th><th>CUIL</th><th>Mail</th><th></th></tr></thead>
+          <tbody id="empleadosVerBody"></tbody>
         </table>
         <div id="empleadosVacio" style="color:var(--slate);font-size:13.5px;padding:16px 0;text-align:center;display:none;">
-          Todavía no hay empleados cargados en esta empresa.
+          Todavía no hay empleados activos cargados en esta empresa.
+        </div>
+      </div>
+
+      <div class="card" id="empleadosAgregarPanel" data-view="empleados-agregar" style="display:none;">
+        <h2>Agregar empleados</h2>
+        <p class="sub">Elegí cómo querés cargarlos.</p>
+        <div class="btnrow" style="margin-bottom:20px;">
+          <button class="btn-secondary" id="mostrarCargaManualBtn" style="width:auto;">Carga manual</button>
+          <button class="btn-secondary" id="mostrarImportarExcelBtn" style="width:auto;">Importar Excel</button>
         </div>
 
-        <div id="agregarEmpleadoCard">
-          <hr style="border:none;border-top:1px solid var(--line);margin:20px 0;">
-          <h2 style="font-size:15px;">Agregar empleado</h2>
+        <div id="agregarEmpleadoCard" style="display:none;">
+          <h2 style="font-size:15px;">Carga manual</h2>
+          <div class="err" id="agregarEmpleadoErr" style="display:none;"></div>
           <label for="empleNombre">Nombre</label>
           <input type="text" id="empleNombre" placeholder="Nombre y apellido">
           <label for="empleCuil">CUIL</label>
@@ -297,9 +305,8 @@
           <button class="btn-primary" id="crearEmpleadoBtn" style="width:auto;">Agregar empleado</button>
         </div>
 
-        <div id="importExcelCard">
-          <hr style="border:none;border-top:1px solid var(--line);margin:20px 0;">
-          <h2 style="font-size:15px;">Importar varios (Excel/CSV)</h2>
+        <div id="importExcelCard" style="display:none;">
+          <h2 style="font-size:15px;">Importar Excel/CSV</h2>
           <p class="sub">Columnas esperadas: Nombre (o Nombre + Apellido), CUIL, Mail. No importa mayúsculas ni separadores.</p>
           <input type="file" id="excelInput" accept=".xlsx,.xls,.csv">
           <div id="excelPreviewWrap" style="display:none;">
@@ -315,10 +322,29 @@
             </div>
           </div>
         </div>
+
+        <div id="invitacionesPendientesWrap" style="display:none;margin-top:20px;padding-top:18px;border-top:1px solid var(--line);">
+          <p class="sub" id="invitacionesPendientesTexto" style="margin-bottom:12px;"></p>
+          <button class="btn-primary" id="enviarInvitacionesBtn" style="width:auto;">Enviar invitación a la app</button>
+        </div>
       </div>
 
-      <div class="card" id="recibosPanel" data-view="recibos" style="display:none;">
-        <h2>Recibos del mes</h2>
+      <div class="card" id="empleadosBajaPanel" data-view="empleados-baja" style="display:none;">
+        <h2>Dar de baja</h2>
+        <p class="sub">No borra nada — el historial de recibos queda intacto y podés reactivarlo cuando quieras.</p>
+        <table>
+          <thead><tr><th>Nombre</th><th>CUIL</th><th></th></tr></thead>
+          <tbody id="empleadosBajaActivosBody"></tbody>
+        </table>
+        <h2 style="font-size:15px;margin-top:24px;">Inactivos (reactivar)</h2>
+        <table>
+          <thead><tr><th>Nombre</th><th>CUIL</th><th></th></tr></thead>
+          <tbody id="empleadosBajaInactivosBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card" id="recibosImportarPanel" data-view="recibos-importar" style="display:none;">
+        <h2>Importar recibos</h2>
         <p class="sub">Subí el PDF único con todos los recibos de la empresa en la que estás trabajando. Se separa leyendo el CUIL en cada hoja.</p>
         <input type="file" id="pdfInput" accept="application/pdf">
         <p class="sub" id="pdfProgreso"></p>
@@ -326,7 +352,7 @@
           <div class="err" id="pdfErr" style="display:none;"></div>
           <p class="sub" id="pdfResumen"></p>
           <table>
-            <thead><tr><th>Hojas</th><th>Empleado</th><th>Estado</th><th>Corregir</th></tr></thead>
+            <thead><tr><th>Hojas</th><th>Empleado</th><th>Estado</th><th>Corregir</th><th></th></tr></thead>
             <tbody id="pdfPreviewBody"></tbody>
           </table>
           <div class="btnrow" style="margin-top:12px;">
@@ -334,6 +360,29 @@
             <button class="logout" id="cancelarRecibosBtn" style="width:auto;">Cancelar</button>
           </div>
         </div>
+      </div>
+
+      <div class="card" id="recibosRecientesPanel" data-view="recibos-recientes" style="display:none;">
+        <h2>Estado de recibos recientes</h2>
+        <p class="sub" id="recientesPeriodoTexto"></p>
+        <div class="btnrow" style="margin-bottom:14px;">
+          <button class="btn-primary" id="avisoManualRecientesBtn" style="width:auto;">Enviar aviso a los pendientes</button>
+        </div>
+        <table>
+          <thead><tr><th>Empleado</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="recibosRecientesBody"></tbody>
+        </table>
+        <div id="recibosPendientesAnterioresWrap"></div>
+      </div>
+
+      <div class="card" id="recibosHistorialPanel" data-view="recibos-historial" style="display:none;">
+        <h2>Historial de recibos</h2>
+        <label for="historialPeriodoSelect">Período</label>
+        <select id="historialPeriodoSelect"></select>
+        <table>
+          <thead><tr><th>Empleado</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="recibosHistorialBody"></tbody>
+        </table>
       </div>
 
       <div class="card" id="reportesPanel" data-view="reportes" style="display:none;">
@@ -347,6 +396,43 @@
           <thead><tr><th>Empleado</th><th>Estado</th><th>Último aviso</th></tr></thead>
           <tbody id="reportesBody"></tbody>
         </table>
+      </div>
+
+      <div class="card" id="configuracionPanel" data-view="configuracion" style="display:none;">
+        <h2>Configuración</h2>
+        <p class="sub">Reglas de la empresa en la que estás trabajando. Vamos a ir sumando más opciones acá con el tiempo.</p>
+
+        <div class="switch-row">
+          <div>
+            <div class="switch-label">Bloquear recibo siguiente si no firmó</div>
+            <div class="switch-desc">El empleado no va a poder ver su próximo recibo hasta firmar el anterior.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="companyBloqueoToggle"><span class="track"></span></label>
+        </div>
+
+        <div class="switch-row" style="flex-direction:column;align-items:flex-start;">
+          <div class="switch-label" style="margin-bottom:8px;">Aviso automático a los días sin firmar</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="companyDiasAviso" min="0" style="width:70px;margin:0;">
+            <span class="switch-desc">días (0 = desactivado)</span>
+          </div>
+        </div>
+
+        <div class="switch-row">
+          <div>
+            <div class="switch-label">Marca de agua antes de firmar</div>
+            <div class="switch-desc">Si se desactiva, el recibo se ve limpio incluso antes de que el empleado firme.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="companyMarcaAguaToggle"><span class="track"></span></label>
+        </div>
+
+        <div class="switch-row">
+          <div>
+            <div class="switch-label">Permitir firmar "no conforme"</div>
+            <div class="switch-desc">El empleado va a poder firmar dejando constancia de que no está de acuerdo con el recibo.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="companyFirmaNoConformeToggle"><span class="track"></span></label>
+        </div>
       </div>
 
     </main>
@@ -420,7 +506,7 @@
     </div>
     <iframe id="reciboIframe" style="width:100%;height:420px;border:1px solid var(--line);border-radius:10px;display:block;"></iframe>
     <div id="reciboAccionesFirmado" style="display:none;margin-top:16px;">
-      <p class="sub" style="color:var(--green);font-weight:600;">✓ Recibo firmado. Ya se puede descargar.</p>
+      <p class="sub" id="reciboFirmadoTexto" style="color:var(--green);font-weight:600;">✓ Recibo firmado. Ya se puede descargar.</p>
       <a id="reciboDescargarLink" class="btn-primary" style="display:inline-block;width:auto;text-decoration:none;padding:10px 18px;">Descargar PDF</a>
     </div>
     <div id="reciboAccionesPin" style="display:none;margin-top:16px;">
@@ -559,21 +645,16 @@ async function entrarAEmpresa(id, nombre, listaCompleta){
   document.getElementById('empresaPickerScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'block';
 
-  const esVisualizador = currentUserRol === 'visualizador';
-  document.getElementById('empleadosSubtitulo').textContent =
-    `Empleados de ${nombre}.`;
-  document.getElementById('agregarEmpleadoCard').style.display = esVisualizador ? 'none' : 'block';
-  document.getElementById('importExcelCard').style.display = esVisualizador ? 'none' : 'block';
-  document.getElementById('companyConfigPanel').style.display = esVisualizador ? 'none' : 'block';
-
   document.getElementById('workspaceIndicator').style.display = 'flex';
-  document.getElementById('workspaceLabel').textContent = esVisualizador ? 'Visualizando:' : 'Trabajando en:';
+  document.getElementById('workspaceLabel').textContent = currentUserRol === 'visualizador' ? 'Visualizando:' : 'Trabajando en:';
   document.getElementById('empresaActualNombre').textContent = nombre;
   const cambiarBtn = document.getElementById('cambiarEmpresaBtn');
+  cambiarBtn.textContent = 'Cambiar de empresa';
   cambiarBtn.style.display = (listaCompleta && listaCompleta.length > 1) ? 'inline-block' : 'none';
   cambiarBtn.onclick = () => mostrarPicker(listaCompleta);
 
   construirNav();
+  cargarConfigEmpresa();
 }
 
 // ---------------- NAVEGACIÓN LATERAL ----------------
@@ -583,6 +664,7 @@ const NAV_ICONS = {
   empleados: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><path d="M3.8 19c0-3 2.3-5 5.2-5s5.2 2 5.2 5"/><path d="M16 8.2a2.6 2.6 0 1 1 2.2 4"/><path d="M15.5 14.3c2.3.3 4.2 2.1 4.7 4.7"/></svg>',
   recibos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4h4"/><path d="M8.5 12h7M8.5 15.3h7M8.5 18.5h4"/></svg>',
   reportes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/><path d="M2.5 20h19"/></svg>',
+  configuracion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V19.5a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H4.5a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.04 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1.04-1.56V4.5a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.56 1.04h.09a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04Z"/></svg>',
 };
 
 function construirNav(){
@@ -594,11 +676,27 @@ function construirNav(){
     construirGrupoEmpresas(cont);
     construirGrupoUsuarios(cont);
   } else if(currentUserRol === 'admin_operativo'){
-    agregarNavItem(cont, 'empleados', 'Empleados');
-    agregarNavItem(cont, 'recibos', 'Recibos');
+    construirGrupoGenerico(cont, 'empleados', 'Empleados', [
+      { header: 'Gestión de empleados' },
+      { target: 'empleados-ver', label: 'Ver datos' },
+      { target: 'empleados-agregar', label: 'Agregar nuevo' },
+      { target: 'empleados-baja', label: 'Dar de baja' },
+    ]);
+    construirGrupoGenerico(cont, 'recibos', 'Recibos', [
+      { target: 'recibos-importar', label: 'Importar recibos' },
+      { target: 'recibos-recientes', label: 'Estado de recibos recientes' },
+      { target: 'recibos-historial', label: 'Historial de recibos' },
+    ]);
     agregarNavItem(cont, 'reportes', 'Reportes');
+    agregarNavItem(cont, 'configuracion', 'Configuración');
   } else {
-    agregarNavItem(cont, 'empleados', 'Empleados');
+    construirGrupoGenerico(cont, 'empleados', 'Empleados', [
+      { target: 'empleados-ver', label: 'Ver datos' },
+    ]);
+    construirGrupoGenerico(cont, 'recibos', 'Recibos', [
+      { target: 'recibos-recientes', label: 'Estado de recibos recientes' },
+      { target: 'recibos-historial', label: 'Historial de recibos' },
+    ]);
     agregarNavItem(cont, 'reportes', 'Reportes');
   }
 
@@ -612,12 +710,48 @@ function agregarNavItem(cont, viewId, label){
   btn.title = label;
   btn.innerHTML = `<span>${NAV_ICONS[viewId] || '•'}</span><span class="nav-label">${label}</span>`;
   btn.addEventListener('click', () => {
+    document.getElementById('sidebarNav').classList.remove('collapsed');
     document.querySelectorAll('.nav-item, .nav-subitem').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     mostrarVista(viewId);
   });
   cont.appendChild(btn);
   return btn;
+}
+
+// grupo desplegable genérico: iconKey (para NAV_ICONS), label del grupo, y lista de
+// { header: 'texto' } para subtítulos o { target, label } para opciones clickeables
+function construirGrupoGenerico(cont, iconKey, label, items){
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'nav-item';
+  toggleBtn.title = label;
+  toggleBtn.innerHTML = `${NAV_ICONS[iconKey]}<span class="nav-label">${label}</span>`;
+
+  const submenu = document.createElement('div');
+  submenu.className = 'nav-submenu';
+  submenu.style.display = 'none';
+  submenu.innerHTML = items.map(it =>
+    it.header
+      ? `<div class="nav-subheader">${it.header}</div>`
+      : `<button class="nav-subitem" data-target="${it.target}">${it.label}</button>`
+  ).join('');
+
+  toggleBtn.addEventListener('click', () => {
+    const sidebar = document.getElementById('sidebarNav');
+    sidebar.classList.remove('collapsed');
+    submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+  });
+
+  submenu.querySelectorAll('.nav-subitem').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item, .nav-subitem').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      mostrarVista(btn.dataset.target);
+    });
+  });
+
+  cont.appendChild(toggleBtn);
+  cont.appendChild(submenu);
 }
 
 function construirGrupoEmpresas(cont){
@@ -641,9 +775,7 @@ function construirGrupoEmpresas(cont){
 
   toggleBtn.addEventListener('click', () => {
     const sidebar = document.getElementById('sidebarNav');
-    if(sidebar.classList.contains('collapsed')){
-      sidebar.classList.remove('collapsed');
-    }
+    sidebar.classList.remove('collapsed');
     submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
   });
 
@@ -675,9 +807,7 @@ function construirGrupoUsuarios(cont){
 
   toggleBtn.addEventListener('click', () => {
     const sidebar = document.getElementById('sidebarNav');
-    if(sidebar.classList.contains('collapsed')){
-      sidebar.classList.remove('collapsed');
-    }
+    sidebar.classList.remove('collapsed');
     submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
   });
 
@@ -698,6 +828,7 @@ document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
 });
 
 function mostrarVista(nombre){
+  vistaActual = nombre;
   document.getElementById('vistaVaciaMensaje').style.display = 'none';
   document.querySelectorAll('[data-view]').forEach(el => {
     el.style.display = (el.dataset.view === nombre) ? 'block' : 'none';
@@ -709,9 +840,14 @@ function mostrarVista(nombre){
   if(nombre === 'empresas-reactivar') cargarEmpresasReactivar();
   if(nombre === 'usuarios-administrar') cargarUsuarios();
   if(nombre === 'usuarios-crear'){ /* ya no necesita precarga */ }
-  if(nombre === 'empleados'){ cargarConfigEmpresa(); cargarEmpleados(); }
-  if(nombre === 'recibos'){ /* el panel de recibos no necesita precarga propia */ }
-  if(nombre === 'reportes'){ if(empresaSeleccionada) cargarEmpleados(); }
+  if(nombre === 'empleados-ver'){ cargarConfigEmpresa(); cargarEmpleadosVer(); }
+  if(nombre === 'empleados-agregar'){ resetAgregarEmpleadoUI(); }
+  if(nombre === 'empleados-baja'){ cargarEmpleadosBaja(); }
+  if(nombre === 'recibos-importar'){ cargarEmpleadosBase(); resetImportarRecibosUI(); }
+  if(nombre === 'recibos-recientes'){ cargarRecibosRecientes(); }
+  if(nombre === 'recibos-historial'){ cargarRecibosHistorial(); }
+  if(nombre === 'reportes'){ if(empresaSeleccionada){ cargarEmpleadosBase(); cargarReportes(); } }
+  if(nombre === 'configuracion'){ cargarConfigEmpresa(); }
 }
 
 function normalizeCuit(c){ return String(c || '').replace(/\D/g, ''); }
@@ -883,97 +1019,168 @@ document.getElementById('asignarEmpresaConfirmar').addEventListener('click', asy
 // ---------------- EMPLEADOS ----------------
 let empresaSeleccionada = null;
 
+let empresaConfigActual = { bloquear_si_no_firma: false, dias_aviso_automatico: 0, marca_agua_habilitada: true, permitir_firma_no_conforme: false };
+
 async function cargarConfigEmpresa(){
-  if(currentUserRol !== 'admin_operativo' || !empresaSeleccionada) return;
+  if(!empresaSeleccionada) return;
   const { data } = await supabaseClient
     .from('empresas')
-    .select('bloquear_si_no_firma, dias_aviso_automatico')
+    .select('bloquear_si_no_firma, dias_aviso_automatico, marca_agua_habilitada, permitir_firma_no_conforme')
     .eq('id', empresaSeleccionada)
     .single();
   if(!data) return;
-  document.getElementById('companyBloqueoToggle').checked = data.bloquear_si_no_firma;
-  document.getElementById('companyDiasAviso').value = data.dias_aviso_automatico;
+  empresaConfigActual = data;
   empresaActualDiasAviso = data.dias_aviso_automatico;
+
+  if(currentUserRol === 'admin_operativo'){
+    document.getElementById('companyBloqueoToggle').checked = data.bloquear_si_no_firma;
+    document.getElementById('companyDiasAviso').value = data.dias_aviso_automatico;
+    document.getElementById('companyMarcaAguaToggle').checked = data.marca_agua_habilitada;
+    document.getElementById('companyFirmaNoConformeToggle').checked = data.permitir_firma_no_conforme;
+  }
 }
 
 document.getElementById('companyBloqueoToggle').addEventListener('change', async function(){
+  empresaConfigActual.bloquear_si_no_firma = this.checked;
   await supabaseClient.from('empresas').update({ bloquear_si_no_firma: this.checked }).eq('id', empresaSeleccionada);
 });
 document.getElementById('companyDiasAviso').addEventListener('change', async function(){
   const dias = Math.max(0, parseInt(this.value, 10) || 0);
   this.value = dias;
   empresaActualDiasAviso = dias;
+  empresaConfigActual.dias_aviso_automatico = dias;
   await supabaseClient.from('empresas').update({ dias_aviso_automatico: dias }).eq('id', empresaSeleccionada);
 });
+document.getElementById('companyMarcaAguaToggle').addEventListener('change', async function(){
+  empresaConfigActual.marca_agua_habilitada = this.checked;
+  await supabaseClient.from('empresas').update({ marca_agua_habilitada: this.checked }).eq('id', empresaSeleccionada);
+});
+document.getElementById('companyFirmaNoConformeToggle').addEventListener('change', async function(){
+  empresaConfigActual.permitir_firma_no_conforme = this.checked;
+  await supabaseClient.from('empresas').update({ permitir_firma_no_conforme: this.checked }).eq('id', empresaSeleccionada);
+});
 
-let empleadosActuales = [];
-
+let empleadosActuales = []; // solo activos, de la empresa en la que se está trabajando
+let empleadosTodos = [];    // activos + inactivos
 let ultimoRecibosPorEmpleado = {};
+let vistaActual = null;
 
-async function cargarEmpleados(){
-  const err = document.getElementById('empleadoErr');
-  err.style.display = 'none';
-  const body = document.getElementById('empleadosBody');
-  const vacio = document.getElementById('empleadosVacio');
-  if(!empresaSeleccionada){ body.innerHTML = ''; vacio.style.display = 'none'; empleadosActuales = []; return; }
-
+async function cargarEmpleadosBase(){
+  if(!empresaSeleccionada){ empleadosActuales = []; empleadosTodos = []; return; }
   const { data, error } = await supabaseClient
     .from('empleados')
-    .select('id, nombre, cuil, mail')
+    .select('id, nombre, cuil, mail, activo')
     .eq('empresa_id', empresaSeleccionada)
     .order('nombre');
+  if(error){ empleadosTodos = []; empleadosActuales = []; return; }
+  empleadosTodos = data || [];
+  empleadosActuales = empleadosTodos.filter(e => e.activo);
+}
 
-  if(error){
-    err.textContent = 'No se pudieron cargar los empleados: ' + error.message;
-    err.style.display = 'block';
-    return;
-  }
-
-  empleadosActuales = data;
-
-  if(data.length === 0){
-    body.innerHTML = '';
-    vacio.style.display = 'block';
-    ultimoRecibosPorEmpleado = {};
-    renderReportes();
-    return;
-  }
-  vacio.style.display = 'none';
-
-  // último recibo por empleado, para mostrar el estado
-  const ids = data.map(e => e.id);
-  const { data: recibos } = await supabaseClient
+async function obtenerTodosLosRecibos(){
+  await cargarEmpleadosBase();
+  if(empleadosActuales.length === 0) return [];
+  const ids = empleadosActuales.map(e => e.id);
+  const { data } = await supabaseClient
     .from('recibos')
     .select('id, empleado_id, mes, firmado, creado_en, ultimo_aviso_en, ultimo_aviso_tipo')
     .in('empleado_id', ids)
     .order('creado_en', { ascending: false });
-
-  const ultimoPorEmpleado = {};
-  (recibos || []).forEach(r => {
-    if(!ultimoPorEmpleado[r.empleado_id]) ultimoPorEmpleado[r.empleado_id] = r;
-  });
-  ultimoRecibosPorEmpleado = ultimoPorEmpleado;
-
-  body.innerHTML = data.map(e => {
-    const r = ultimoPorEmpleado[e.id];
-    let reciboCol;
-    if(!r){
-      reciboCol = '<span class="sello-neutro">Sin cargar</span>';
-    } else {
-      reciboCol = r.firmado
-        ? '<span class="sello-firmado">✓ Firmado</span>'
-        : '<span class="sello-pendiente">Pendiente</span>';
-    }
-    const verBtn = r ? `<button class="ghost" onclick="verRecibo('${r.id}')">Ver</button>` : '';
-    const eliminarBtn = currentUserRol === 'admin_operativo' ? `<button class="ghost" style="color:var(--red);" onclick="eliminarEmpleado('${e.id}', '${e.nombre.replace(/'/g, "\\'")}')">Eliminar</button>` : '';
-    return `<tr><td>${e.nombre}</td><td>${e.cuil}</td><td>${e.mail}</td><td>${reciboCol}</td><td style="text-align:right">${verBtn} ${eliminarBtn}</td></tr>`;
-  }).join('');
-
-  await chequearAvisosAutomaticos();
-  renderReportes();
+  return data || [];
 }
 
 function normalizeCuilLocal(c){ return String(c || '').replace(/\D/g, ''); }
+
+// ---------------- VER DATOS (con edición en línea) ----------------
+const empleadosEnEdicion = new Set();
+
+async function cargarEmpleadosVer(){
+  const err = document.getElementById('empleadoErr');
+  err.style.display = 'none';
+  await cargarEmpleadosBase();
+
+  const body = document.getElementById('empleadosVerBody');
+  const vacio = document.getElementById('empleadosVacio');
+  if(empleadosActuales.length === 0){
+    body.innerHTML = '';
+    vacio.style.display = 'block';
+    return;
+  }
+  vacio.style.display = 'none';
+
+  body.innerHTML = empleadosActuales.map(e => {
+    if(empleadosEnEdicion.has(e.id)){
+      return `<tr>
+        <td><input type="text" id="editNombre_${e.id}" value="${e.nombre}" style="margin:0;"></td>
+        <td><input type="text" id="editCuil_${e.id}" value="${e.cuil}" class="mono" style="margin:0;"></td>
+        <td><input type="email" id="editMail_${e.id}" value="${e.mail}" style="margin:0;"></td>
+        <td style="text-align:right;white-space:nowrap;">
+          <button class="ghost" onclick="guardarEdicionEmpleado('${e.id}')">Guardar</button>
+          <button class="ghost" onclick="cancelarEdicionEmpleado('${e.id}')">Cancelar</button>
+        </td>
+      </tr>`;
+    }
+    return `<tr>
+      <td>${e.nombre}</td><td class="mono">${e.cuil}</td><td>${e.mail}</td>
+      <td style="text-align:right">
+        ${currentUserRol === 'admin_operativo' ? `<button class="ghost" onclick="entrarEdicionEmpleado('${e.id}')" title="Editar">✏️</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function entrarEdicionEmpleado(id){ empleadosEnEdicion.add(id); cargarEmpleadosVer(); }
+window.entrarEdicionEmpleado = entrarEdicionEmpleado;
+function cancelarEdicionEmpleado(id){ empleadosEnEdicion.delete(id); cargarEmpleadosVer(); }
+window.cancelarEdicionEmpleado = cancelarEdicionEmpleado;
+
+async function guardarEdicionEmpleado(id){
+  const err = document.getElementById('empleadoErr');
+  err.style.display = 'none';
+  const nombre = document.getElementById(`editNombre_${id}`).value.trim();
+  const cuil = normalizeCuilLocal(document.getElementById(`editCuil_${id}`).value);
+  const mail = document.getElementById(`editMail_${id}`).value.trim();
+
+  if(!nombre || cuil.length !== 11 || !mail.includes('@')){
+    err.textContent = 'Revisá los datos: nombre, CUIL (11 dígitos) y mail válido.';
+    err.style.display = 'block';
+    return;
+  }
+
+  const { error } = await supabaseClient.from('empleados').update({ nombre, cuil, mail }).eq('id', id);
+  if(error){
+    err.textContent = error.code === '23505' ? 'Ya hay otro empleado con ese CUIL en esta empresa.' : 'No se pudo guardar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+  empleadosEnEdicion.delete(id);
+  cargarEmpleadosVer();
+}
+window.guardarEdicionEmpleado = guardarEdicionEmpleado;
+
+// ---------------- DAR DE BAJA / REACTIVAR ----------------
+async function cargarEmpleadosBaja(){
+  await cargarEmpleadosBase();
+  const activos = empleadosTodos.filter(e => e.activo);
+  const inactivos = empleadosTodos.filter(e => !e.activo);
+
+  document.getElementById('empleadosBajaActivosBody').innerHTML = activos.map(e =>
+    `<tr><td>${e.nombre}</td><td class="mono">${e.cuil}</td>
+      <td style="text-align:right"><button class="ghost" style="color:var(--red);" onclick="toggleEmpleadoActivo('${e.id}', true)">Dar de baja</button></td></tr>`
+  ).join('') || '<tr><td colspan="3" style="color:var(--slate);text-align:center;">No hay empleados activos.</td></tr>';
+
+  document.getElementById('empleadosBajaInactivosBody').innerHTML = inactivos.map(e =>
+    `<tr><td>${e.nombre}</td><td class="mono">${e.cuil}</td>
+      <td style="text-align:right"><button class="ghost" onclick="toggleEmpleadoActivo('${e.id}', false)">Reactivar</button></td></tr>`
+  ).join('') || '<tr><td colspan="3" style="color:var(--slate);text-align:center;">No hay empleados de baja.</td></tr>';
+}
+
+async function toggleEmpleadoActivo(id, activoActual){
+  const { error } = await supabaseClient.from('empleados').update({ activo: !activoActual }).eq('id', id);
+  if(error){ alert('No se pudo actualizar: ' + error.message); return; }
+  cargarEmpleadosBaja();
+}
+window.toggleEmpleadoActivo = toggleEmpleadoActivo;
 
 // ---------------- REPORTES Y AVISOS ----------------
 let empresaActualDiasAviso = 0;
@@ -1001,6 +1208,15 @@ async function chequearAvisosAutomaticos(){
 
 function toast(msg){
   alert(msg);
+}
+
+async function cargarReportes(){
+  const recibos = await obtenerTodosLosRecibos();
+  const ultimoPorEmpleado = {};
+  recibos.forEach(r => { if(!ultimoPorEmpleado[r.empleado_id]) ultimoPorEmpleado[r.empleado_id] = r; });
+  ultimoRecibosPorEmpleado = ultimoPorEmpleado;
+  await chequearAvisosAutomaticos();
+  renderReportes();
 }
 
 function renderReportes(){
@@ -1055,17 +1271,47 @@ document.getElementById('avisoManualBtn').addEventListener('click', async () => 
   alert(enviados > 0 ? `Aviso manual enviado a ${enviados} empleado(s) pendiente(s).` : 'No hay nadie pendiente de firmar.');
 });
 
-async function eliminarEmpleado(id, nombre){
-  const ok = confirm(`¿Eliminar a ${nombre}? Esto borra también su historial de recibos. No se puede deshacer.`);
-  if(!ok) return;
-  const { error } = await supabaseClient.from('empleados').delete().eq('id', id);
-  if(error){ alert('No se pudo eliminar: ' + error.message); return; }
-  cargarEmpleados();
+// ---------------- AGREGAR NUEVO: alternar manual/excel + invitaciones ----------------
+function resetAgregarEmpleadoUI(){
+  document.getElementById('agregarEmpleadoCard').style.display = 'none';
+  document.getElementById('importExcelCard').style.display = 'none';
+  document.getElementById('invitacionesPendientesWrap').style.display = 'none';
 }
-window.eliminarEmpleado = eliminarEmpleado;
+
+document.getElementById('mostrarCargaManualBtn').addEventListener('click', () => {
+  document.getElementById('agregarEmpleadoCard').style.display = 'block';
+  document.getElementById('importExcelCard').style.display = 'none';
+  document.getElementById('invitacionesPendientesWrap').style.display = 'none';
+});
+document.getElementById('mostrarImportarExcelBtn').addEventListener('click', () => {
+  document.getElementById('importExcelCard').style.display = 'block';
+  document.getElementById('agregarEmpleadoCard').style.display = 'none';
+  document.getElementById('invitacionesPendientesWrap').style.display = 'none';
+});
+
+let ultimosEmpleadosCreados = [];
+
+function mostrarInvitacionesPendientes(empleados){
+  ultimosEmpleadosCreados = empleados;
+  const wrap = document.getElementById('invitacionesPendientesWrap');
+  document.getElementById('invitacionesPendientesTexto').textContent =
+    empleados.length === 1
+      ? `Se agregó a ${empleados[0].nombre}. ¿Le enviamos la invitación para descargar la app?`
+      : `Se agregaron ${empleados.length} empleados nuevos. ¿Les enviamos la invitación para descargar la app?`;
+  wrap.style.display = 'block';
+}
+
+document.getElementById('enviarInvitacionesBtn').addEventListener('click', async () => {
+  const ids = ultimosEmpleadosCreados.map(e => e.id);
+  if(ids.length === 0) return;
+  const { error } = await supabaseClient.from('empleados').update({ invitacion_estado: 'invitado' }).in('id', ids);
+  document.getElementById('invitacionesPendientesWrap').style.display = 'none';
+  if(error){ alert('No se pudo enviar: ' + error.message); return; }
+  alert('Invitación marcada como enviada. (La app del empleado todavía no existe — esto queda listo para cuando la construyamos.)');
+});
 
 document.getElementById('crearEmpleadoBtn').addEventListener('click', async () => {
-  const err = document.getElementById('empleadoErr');
+  const err = document.getElementById('agregarEmpleadoErr');
   err.style.display = 'none';
 
   if(!empresaSeleccionada){ err.textContent = 'Elegí una empresa primero.'; err.style.display = 'block'; return; }
@@ -1078,9 +1324,11 @@ document.getElementById('crearEmpleadoBtn').addEventListener('click', async () =
   if(cuil.length !== 11){ err.textContent = 'El CUIL debe tener 11 dígitos.'; err.style.display = 'block'; return; }
   if(!mail.includes('@')){ err.textContent = 'Poné un mail válido.'; err.style.display = 'block'; return; }
 
-  const { error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from('empleados')
-    .insert({ empresa_id: empresaSeleccionada, nombre, cuil, mail });
+    .insert({ empresa_id: empresaSeleccionada, nombre, cuil, mail })
+    .select('id, nombre')
+    .single();
 
   if(error){
     err.textContent = error.code === '23505'
@@ -1093,7 +1341,7 @@ document.getElementById('crearEmpleadoBtn').addEventListener('click', async () =
   document.getElementById('empleNombre').value = '';
   document.getElementById('empleCuil').value = '';
   document.getElementById('empleMail').value = '';
-  cargarEmpleados();
+  mostrarInvitacionesPendientes([data]);
 });
 
 // ---------------- IMPORT DE EXCEL/CSV ----------------
@@ -1197,7 +1445,7 @@ document.getElementById('confirmarImportBtn').addEventListener('click', async ()
     empresa_id: empresaSeleccionada, nombre: f.nombre, cuil: f.cuil, mail: f.mail,
   }));
 
-  const { error } = await supabaseClient.from('empleados').insert(registros);
+  const { data, error } = await supabaseClient.from('empleados').insert(registros).select('id, nombre');
 
   if(error){
     err.textContent = 'No se pudo importar: ' + error.message;
@@ -1208,7 +1456,7 @@ document.getElementById('confirmarImportBtn').addEventListener('click', async ()
   filasParaImportar = [];
   document.getElementById('excelPreviewWrap').style.display = 'none';
   document.getElementById('excelInput').value = '';
-  cargarEmpleados();
+  mostrarInvitacionesPendientes(data || []);
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -1426,8 +1674,110 @@ document.getElementById('confirmarRecibosBtn').addEventListener('click', async (
   pdfGrupos = []; pdfOriginalBytes = null;
   document.getElementById('pdfPreviewWrap').style.display = 'none';
   document.getElementById('pdfInput').value = '';
-  cargarEmpleados();
   alert(`${cargados} recibo(s) guardado(s).`);
+});
+
+function resetImportarRecibosUI(){
+  pdfGrupos = []; pdfOriginalBytes = null;
+  document.getElementById('pdfPreviewWrap').style.display = 'none';
+  document.getElementById('pdfInput').value = '';
+  document.getElementById('pdfProgreso').textContent = '';
+}
+
+// ---------------- ESTADO DE RECIBOS RECIENTES / HISTORIAL ----------------
+let recibosHistorialData = [];
+
+function filaRecibo(r, nombrePorId){
+  const estado = r.firmado ? '<span class="sello-firmado">✓ Firmado</span>' : '<span class="sello-pendiente">Pendiente</span>';
+  return `<tr><td>${nombrePorId[r.empleado_id] || '—'}</td><td>${estado}</td><td style="text-align:right"><button class="ghost" onclick="verRecibo('${r.id}')">Ver</button></td></tr>`;
+}
+
+let recibosVistaRecientes = [];
+
+async function cargarRecibosRecientes(){
+  const recibos = await obtenerTodosLosRecibos();
+  const nombrePorId = {}; empleadosActuales.forEach(e => nombrePorId[e.id] = e.nombre);
+
+  if(recibos.length === 0){
+    document.getElementById('recientesPeriodoTexto').textContent = 'Todavía no se cargó ningún recibo.';
+    document.getElementById('recibosRecientesBody').innerHTML = '';
+    document.getElementById('recibosPendientesAnterioresWrap').innerHTML = '';
+    recibosVistaRecientes = [];
+    return;
+  }
+
+  const periodoActual = recibos[0].mes; // el más nuevo, por creado_en desc
+  const ultimoPorEmpleado = {};
+  recibos.forEach(r => { if(!ultimoPorEmpleado[r.empleado_id]) ultimoPorEmpleado[r.empleado_id] = r; });
+  ultimoRecibosPorEmpleado = ultimoPorEmpleado;
+
+  const recibosPeriodoActual = recibos.filter(r => r.mes === periodoActual);
+  document.getElementById('recientesPeriodoTexto').textContent = `Período actual: ${periodoActual}`;
+  document.getElementById('recibosRecientesBody').innerHTML = recibosPeriodoActual.map(r => filaRecibo(r, nombrePorId)).join('');
+
+  const anteriores = recibos.filter(r => r.mes !== periodoActual && !r.firmado);
+  const porPeriodo = {};
+  anteriores.forEach(r => { (porPeriodo[r.mes] = porPeriodo[r.mes] || []).push(r); });
+
+  const wrap = document.getElementById('recibosPendientesAnterioresWrap');
+  wrap.innerHTML = Object.keys(porPeriodo).map(periodo => `
+    <h2 style="font-size:14px;margin-top:24px;">Pendientes ${periodo}</h2>
+    <table>
+      <thead><tr><th>Empleado</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${porPeriodo[periodo].map(r => filaRecibo(r, nombrePorId)).join('')}</tbody>
+    </table>`
+  ).join('');
+
+  recibosVistaRecientes = [...recibosPeriodoActual, ...anteriores];
+  await chequearAvisosAutomaticos();
+}
+
+document.getElementById('avisoManualRecientesBtn').addEventListener('click', async () => {
+  let enviados = 0;
+  for(const r of recibosVistaRecientes){
+    if(r.firmado) continue;
+    await supabaseClient.from('recibos').update({
+      ultimo_aviso_en: new Date().toISOString(), ultimo_aviso_tipo: 'manual',
+    }).eq('id', r.id);
+    enviados++;
+  }
+  alert(enviados > 0 ? `Aviso manual enviado a ${enviados} recibo(s) pendiente(s).` : 'No hay nadie pendiente de firmar.');
+  cargarRecibosRecientes();
+});
+
+async function cargarRecibosHistorial(){
+  const recibos = await obtenerTodosLosRecibos();
+  recibosHistorialData = recibos;
+  const sel = document.getElementById('historialPeriodoSelect');
+
+  if(recibos.length === 0){
+    sel.innerHTML = '<option value="">Sin datos</option>';
+    document.getElementById('recibosHistorialBody').innerHTML = '';
+    return;
+  }
+
+  const periodoActual = recibos[0].mes;
+  const periodos = [...new Set(recibos.map(r => r.mes))].filter(m => m !== periodoActual);
+
+  if(periodos.length === 0){
+    sel.innerHTML = '<option value="">Todavía no hay períodos anteriores</option>';
+    document.getElementById('recibosHistorialBody').innerHTML = '';
+    return;
+  }
+
+  sel.innerHTML = periodos.map(p => `<option value="${p}">${p}</option>`).join('');
+  mostrarHistorialDePeriodo(sel.value);
+}
+
+function mostrarHistorialDePeriodo(periodo){
+  const nombrePorId = {}; empleadosActuales.forEach(e => nombrePorId[e.id] = e.nombre);
+  const filtrados = recibosHistorialData.filter(r => r.mes === periodo);
+  document.getElementById('recibosHistorialBody').innerHTML = filtrados.map(r => filaRecibo(r, nombrePorId)).join('')
+    || '<tr><td colspan="3" style="color:var(--slate);text-align:center;">Sin recibos en este período.</td></tr>';
+}
+
+document.getElementById('historialPeriodoSelect').addEventListener('change', function(){
+  mostrarHistorialDePeriodo(this.value);
 });
 
 // ---------------- VER / FIRMAR (simulado, hasta que exista la app del empleado) ----------------
@@ -1441,24 +1791,29 @@ async function verRecibo(reciboId){
     .single();
   if(error || !recibo){ alert('No se pudo abrir el recibo.'); return; }
 
-  const emp = empleadosActuales.find(e => e.id === recibo.empleado_id);
+  const emp = empleadosTodos.find(e => e.id === recibo.empleado_id) || empleadosActuales.find(e => e.id === recibo.empleado_id);
   reciboAbierto = recibo;
   document.getElementById('reciboModalTitulo').textContent = `Recibo de ${emp ? emp.nombre : ''} — ${recibo.mes}`;
 
-  const path = recibo.firmado ? recibo.archivo_limpio_path : recibo.archivo_marca_path;
+  const puedeVerLimpio = recibo.firmado || currentUserRol === 'admin_operativo';
+  const path = puedeVerLimpio ? recibo.archivo_limpio_path : recibo.archivo_marca_path;
   const { data: signed } = await supabaseClient.storage.from('Recibos').createSignedUrl(path, 600);
   document.getElementById('reciboIframe').src = signed ? signed.signedUrl + '#toolbar=0&navpanes=0' : '';
 
-  document.getElementById('reciboAccionesFirmado').style.display = recibo.firmado ? 'block' : 'none';
+  document.getElementById('reciboAccionesFirmado').style.display = puedeVerLimpio ? 'block' : 'none';
+  document.getElementById('reciboFirmadoTexto').textContent = recibo.firmado
+    ? '✓ Recibo firmado. Ya se puede descargar.'
+    : 'Vista interna sin marca de agua — el empleado todavía no firmó.';
   document.getElementById('reciboAccionesPin').style.display = (recibo.firmado || currentUserRol !== 'admin_operativo') ? 'none' : 'block';
   document.getElementById('reciboPinInput').value = '';
   document.getElementById('reciboPinInput2').value = '';
   document.getElementById('reciboPinError').style.display = 'none';
 
-  if(recibo.firmado){
+  if(puedeVerLimpio){
     const { data: signedLimpio } = await supabaseClient.storage.from('Recibos').createSignedUrl(recibo.archivo_limpio_path, 600);
     document.getElementById('reciboDescargarLink').href = signedLimpio ? signedLimpio.signedUrl : '#';
-  } else {
+  }
+  if(!recibo.firmado){
     const { data: emplData } = await supabaseClient.from('empleados').select('pin_hash').eq('id', recibo.empleado_id).single();
     const tienePin = emplData && emplData.pin_hash;
     document.getElementById('reciboPinExplicacion').textContent = tienePin
@@ -1509,7 +1864,7 @@ document.getElementById('reciboFirmarBtn').addEventListener('click', async () =>
 
   await supabaseClient.from('recibos').update({ firmado: true, firmado_en: new Date().toISOString() }).eq('id', reciboAbierto.id);
   document.getElementById('reciboModalOverlay').style.display = 'none';
-  cargarEmpleados();
+  if(vistaActual) mostrarVista(vistaActual);
 });
 
 // ==================== MÓDULO DE USUARIOS ====================
