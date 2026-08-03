@@ -1540,6 +1540,33 @@ document.getElementById('setPasswordBtn').addEventListener('click', async () => 
 // ==================== MÓDULO DE RECIBOS ====================
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// --- Hash del PIN de firma (PBKDF2 vía Web Crypto, sin librerías externas) ---
+// pin_hash se guarda como "saltHex:hashHex" en la misma columna, sin migración de esquema.
+function bytesAHex(bytes){ return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''); }
+function hexABytes(hex){
+  const bytes = new Uint8Array(hex.length / 2);
+  for(let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return bytes;
+}
+async function pinDerivar(pin, salt){
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
+  return new Uint8Array(bits);
+}
+async function pinHashCrear(pin){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return bytesAHex(salt) + ':' + bytesAHex(await pinDerivar(pin, salt));
+}
+async function pinHashVerificar(pin, guardado){
+  if(!guardado.includes(':')){
+    // PIN viejo guardado en texto plano (empleados creados antes de este cambio).
+    return { valido: guardado === pin, requiereMigracion: guardado === pin };
+  }
+  const [saltHex, hashHex] = guardado.split(':');
+  const hash = await pinDerivar(pin, hexABytes(saltHex));
+  return { valido: bytesAHex(hash) === hashHex, requiereMigracion: false };
+}
+
 let pdfOriginalBytes = null;
 let pdfGrupos = [];
 
@@ -1853,13 +1880,17 @@ document.getElementById('reciboFirmarBtn').addEventListener('click', async () =>
       errBox.style.display = 'block';
       return;
     }
-    // NOTA: esto guarda el PIN en texto plano — es un simulador temporal.
-    // Antes de tener empleados reales, esto debe reemplazarse por un hash real.
-    await supabaseClient.from('empleados').update({ pin_hash: pin }).eq('id', reciboAbierto.empleado_id);
-  } else if(emplData.pin_hash !== pin){
-    errBox.textContent = 'PIN incorrecto.';
-    errBox.style.display = 'block';
-    return;
+    await supabaseClient.from('empleados').update({ pin_hash: await pinHashCrear(pin) }).eq('id', reciboAbierto.empleado_id);
+  } else {
+    const { valido, requiereMigracion } = await pinHashVerificar(pin, emplData.pin_hash);
+    if(!valido){
+      errBox.textContent = 'PIN incorrecto.';
+      errBox.style.display = 'block';
+      return;
+    }
+    if(requiereMigracion){
+      await supabaseClient.from('empleados').update({ pin_hash: await pinHashCrear(pin) }).eq('id', reciboAbierto.empleado_id);
+    }
   }
 
   await supabaseClient.from('recibos').update({ firmado: true, firmado_en: new Date().toISOString() }).eq('id', reciboAbierto.id);

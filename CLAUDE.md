@@ -47,8 +47,10 @@ se simula hoy desde el panel del admin operativo.
   cada admin operativo o visualizador.
 - **empleados**: `id, empresa_id, nombre, cuil, mail, invitacion_estado
   ('pendiente'|'invitado'), pin_hash, activo, creado_en`
-  - ⚠️ `pin_hash` se guarda **en texto plano**, no hasheado. Es un simulador
-    temporal. Hay que arreglar esto antes de que haya empleados reales.
+  - `pin_hash` guarda `saltHex:hashHex` (PBKDF2-SHA256, 100k iteraciones, via
+    Web Crypto — sin librerías nuevas). PINs viejos en texto plano se migran
+    solos la próxima vez que ese empleado firma (se detecta porque no tienen
+    `:`). No hizo falta migración de esquema, sigue siendo una sola columna.
   - `activo`: dar de baja un empleado nunca borra nada, solo pone esto en `false`.
 - **recibos**: `id, empleado_id, mes, archivo_limpio_path, archivo_marca_path,
   firmado, firmado_en, ultimo_aviso_en, ultimo_aviso_tipo, visualizado_en, creado_en`
@@ -152,24 +154,22 @@ alter table empresas add column if not exists permitir_firma_no_conforme boolean
 
 1. **App del empleado** — no existe. Hoy el admin operativo simula la
    firma desde su propio panel. Es la pieza más grande que falta.
-2. **PIN de firma en texto plano** — hay que hashearlo antes de que
-   existan empleados reales.
-3. **Validez legal de la firma electrónica** — nunca se confirmó con un
+2. **Validez legal de la firma electrónica** — nunca se confirmó con un
    abogado laboral ni con el estudio. No dar por sentado que alcanza.
-4. **Revisión de seguridad por IT** — pendiente, recomendado antes de
+3. **Revisión de seguridad por IT** — pendiente, recomendado antes de
    cargar datos reales de clientes/empleados.
-5. **Texto de la marca de agua** — placeholder, falta definir la
+4. **Texto de la marca de agua** — placeholder, falta definir la
    redacción final.
-6. **Switches de Configuración sin efecto** — `marca_agua_habilitada` y
+5. **Switches de Configuración sin efecto** — `marca_agua_habilitada` y
    `permitir_firma_no_conforme` se guardan pero no hacen nada todavía.
-7. **`visualizado_en`** — columna creada, sin usar (depende de la app
+6. **`visualizado_en`** — columna creada, sin usar (depende de la app
    del empleado).
-8. **Envío real de avisos** (recordatorios a empleados) — hoy solo
+7. **Envío real de avisos** (recordatorios a empleados) — hoy solo
    actualiza una fecha en la base, no manda ningún mail/notificación real.
-9. **Botón "ver recibos por empresa" para super admin** — se descartó a
+8. **Botón "ver recibos por empresa" para super admin** — se descartó a
    propósito (el super admin no hace nada operativo), pero quedó anotado
    como posible pedido futuro.
-10. **Integración con Tango** — decisión tomada: NO se va a hacer. El
+9. **Integración con Tango** — decisión tomada: NO se va a hacer. El
     import de Excel/PDF manual es el diseño definitivo, no un parche
     temporal.
 
