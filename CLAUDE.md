@@ -38,9 +38,15 @@ se simula hoy desde el panel del admin operativo.
 
 - **empresas**: `id, nombre, cuit, activa, bloquear_si_no_firma,
   dias_aviso_automatico, marca_agua_habilitada, permitir_firma_no_conforme, creado_en`
-  - Los últimos dos switches (`marca_agua_habilitada`, `permitir_firma_no_conforme`)
-    **hoy solo son visuales** — se guardan en la base pero todavía no cambian
-    ningún comportamiento real. Falta cablearlos.
+  - `marca_agua_habilitada`: si está apagado, el recibo se ve limpio en el
+    visor incluso antes de firmar (ver `verRecibo` en `index.html`). No afecta
+    al admin operativo, que por diseño siempre ve la versión limpia (vista
+    interna) — solo se nota con el rol visualizador o la futura app del empleado.
+  - `permitir_firma_no_conforme`: si está prendido, aparece un segundo botón
+    "Firmar no conforme" al simular la firma, que guarda `recibos.conforme = false`.
+  - RLS: el admin operativo puede hacer `UPDATE` de toda la fila de su empresa
+    (política agregada para que pueda guardar estos switches) — no está acotado
+    columna por columna, ver pendiente de seguridad en `PENDIENTES.md`.
 - **perfiles**: `id (= auth.users.id), email, rol ('superadmin' | 'admin_operativo'
   | 'visualizador'), creado_en`
 - **asignaciones**: `usuario_id, empresa_id` — qué empresas puede ver/gestionar
@@ -53,7 +59,11 @@ se simula hoy desde el panel del admin operativo.
     `:`). No hizo falta migración de esquema, sigue siendo una sola columna.
   - `activo`: dar de baja un empleado nunca borra nada, solo pone esto en `false`.
 - **recibos**: `id, empleado_id, mes, archivo_limpio_path, archivo_marca_path,
-  firmado, firmado_en, ultimo_aviso_en, ultimo_aviso_tipo, visualizado_en, creado_en`
+  firmado, firmado_en, conforme, ultimo_aviso_en, ultimo_aviso_tipo, visualizado_en, creado_en`
+  - `conforme`: `true` por default. Se pone en `false` cuando se firma con el
+    botón "Firmar no conforme" (solo visible si la empresa tiene habilitado
+    `permitir_firma_no_conforme`). Se muestra como un sello distinto (rojo)
+    en las listas de recibos.
   - `visualizado_en`: columna ya creada, **todavía sin usar** — es para cuando
     exista la app del empleado y necesitemos registrar cuándo abrió el recibo
     sin firmarlo (estado "visualizado pero no firmado").
@@ -100,14 +110,18 @@ alter table empleados add column if not exists activo boolean not null default t
 alter table recibos add column if not exists visualizado_en timestamptz;
 alter table empresas add column if not exists marca_agua_habilitada boolean not null default true;
 alter table empresas add column if not exists permitir_firma_no_conforme boolean not null default false;
+alter table recibos add column if not exists conforme boolean not null default true;
 ```
 
 ## Roles y qué ve cada uno
 
-- **Super admin**: solo Empresas y Usuarios. No ve nada operativo (ni
-  empleados ni recibos) — eso es tarea exclusiva del admin operativo.
-  - Empresas → submenú: Visualización (Activas / Inactivas, solo lectura)
-    y Gestión (Agregar nueva / Dar de baja / Reactivar).
+- **Super admin**: Empresas, Usuarios, y una vista de solo lectura de recibos
+  por empresa (no gestiona empleados ni nada operativo del día a día — eso
+  sigue siendo tarea del admin operativo).
+  - Empresas → submenú: Visualización (Activas / Inactivas, solo lectura),
+    Gestión (Agregar nueva / Dar de baja / Reactivar) y "Visualización de
+    recibos" (elegís una empresa activa → ve su "Estado de recibos
+    recientes" de solo lectura, sin botón de aviso, con acceso al historial).
   - Usuarios → submenú: Administrar usuarios (edición en línea: rol por
     desplegable, empresas asignadas con chips + botón "+ empresa") /
     Crear nuevo usuario (mail + rol → modales encadenados preguntando si
@@ -127,8 +141,7 @@ alter table empresas add column if not exists permitir_firma_no_conforme boolean
     Historial de recibos (desplegable de período).
   - Reportes: resumen de firmas + aviso manual/automático.
   - Configuración: switches (bloqueo de recibo siguiente si no firmó,
-    días de aviso automático, marca de agua, permitir firma no conforme
-    — estos dos últimos sin efecto real todavía).
+    días de aviso automático, marca de agua, permitir firma no conforme).
 - **Visualizador**: mismo mecanismo de selector de empresa que admin
   operativo, pero dice "Visualizando:" en vez de "Trabajando en:". Solo
   lectura: Ver datos de empleados, Estado de recibos recientes, Historial,
@@ -160,16 +173,14 @@ alter table empresas add column if not exists permitir_firma_no_conforme boolean
    cargar datos reales de clientes/empleados.
 4. **Texto de la marca de agua** — placeholder, falta definir la
    redacción final.
-5. **Switches de Configuración sin efecto** — `marca_agua_habilitada` y
-   `permitir_firma_no_conforme` se guardan pero no hacen nada todavía.
-6. **`visualizado_en`** — columna creada, sin usar (depende de la app
+5. **`visualizado_en`** — columna creada, sin usar (depende de la app
    del empleado).
-7. **Envío real de avisos** (recordatorios a empleados) — hoy solo
+6. **Envío real de avisos** (recordatorios a empleados) — hoy solo
    actualiza una fecha en la base, no manda ningún mail/notificación real.
-8. **Botón "ver recibos por empresa" para super admin** — se descartó a
-   propósito (el super admin no hace nada operativo), pero quedó anotado
-   como posible pedido futuro.
-9. **Integración con Tango** — decisión tomada: NO se va a hacer. El
+7. **Botón "ver recibos por empresa" para super admin** — se implementó
+   (ver rol Super admin más abajo); quedaba anotado acá como que "se había
+   descartado a propósito", eso ya no es así.
+8. **Integración con Tango** — decisión tomada: NO se va a hacer. El
     import de Excel/PDF manual es el diseño definitivo, no un parche
     temporal.
 
