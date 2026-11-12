@@ -1185,13 +1185,14 @@ document.getElementById('companyFirmaNoConformeToggle').addEventListener('change
 });
 
 async function guardarConfigEmpresa(){
-  const { error } = await supabaseClient.from('empresas').update({
+  const { data, error } = await supabaseClient.from('empresas').update({
     bloquear_si_no_firma: empresaConfigActual.bloquear_si_no_firma,
     dias_aviso_automatico: empresaConfigActual.dias_aviso_automatico,
     marca_agua_habilitada: empresaConfigActual.marca_agua_habilitada,
     permitir_firma_no_conforme: empresaConfigActual.permitir_firma_no_conforme
-  }).eq('id', empresaSeleccionada);
+  }).eq('id', empresaSeleccionada).select();
   if(error){ alert('No se pudieron guardar los cambios: ' + error.message); return false; }
+  if(!data || data.length === 0){ alert('No se guardó ningún cambio: no tenés permiso para modificar esta configuración (revisar permisos en la base).'); return false; }
   empresaActualDiasAviso = empresaConfigActual.dias_aviso_automatico;
   configDirty = false;
   return true;
