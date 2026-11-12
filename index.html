@@ -362,11 +362,19 @@
         </div>
       </div>
 
+      <div class="card" id="superadminRecibosSelectorPanel" data-view="superadmin-recibos-selector" style="display:none;">
+        <h2>Visualización de recibos</h2>
+        <p class="sub">Elegí la empresa que querés visualizar.</p>
+        <div class="err" id="superadminRecibosSelectorErr" style="display:none;"></div>
+        <div id="superadminRecibosSelectorLista" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+
       <div class="card" id="recibosRecientesPanel" data-view="recibos-recientes" style="display:none;">
         <h2>Estado de recibos recientes</h2>
         <p class="sub" id="recientesPeriodoTexto"></p>
         <div class="btnrow" style="margin-bottom:14px;">
           <button class="btn-primary" id="avisoManualRecientesBtn" style="width:auto;">Enviar aviso a los pendientes</button>
+          <button class="btn-secondary" id="recientesVerHistorialBtn" style="width:auto;display:none;">Ver historial de recibos</button>
         </div>
         <table>
           <thead><tr><th>Empleado</th><th>Estado</th><th></th></tr></thead>
@@ -377,6 +385,9 @@
 
       <div class="card" id="recibosHistorialPanel" data-view="recibos-historial" style="display:none;">
         <h2>Historial de recibos</h2>
+        <div class="btnrow" id="historialVerRecientesWrap" style="display:none;margin-bottom:14px;">
+          <button class="btn-secondary" id="historialVerRecientesBtn" style="width:auto;">Ver recibos recientes</button>
+        </div>
         <label for="historialPeriodoSelect">Período</label>
         <select id="historialPeriodoSelect"></select>
         <table>
@@ -410,11 +421,18 @@
           <label class="switch"><input type="checkbox" id="companyBloqueoToggle"><span class="track"></span></label>
         </div>
 
-        <div class="switch-row" style="flex-direction:column;align-items:flex-start;">
-          <div class="switch-label" style="margin-bottom:8px;">Aviso automático a los días sin firmar</div>
+        <div class="switch-row">
+          <div>
+            <div class="switch-label">Aviso automático a los días sin firmar</div>
+            <div class="switch-desc">Le manda un aviso al empleado si pasan X días y no firmó el recibo.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="companyAvisoAutomaticoToggle"><span class="track"></span></label>
+        </div>
+
+        <div class="switch-row" id="diasAvisoWrap" style="display:none;flex-direction:column;align-items:flex-start;">
           <div style="display:flex;align-items:center;gap:8px;">
-            <input type="number" id="companyDiasAviso" min="0" style="width:70px;margin:0;">
-            <span class="switch-desc">días (0 = desactivado)</span>
+            <input type="number" id="companyDiasAviso" min="1" style="width:70px;margin:0;">
+            <span class="switch-desc">días</span>
           </div>
         </div>
 
@@ -433,6 +451,10 @@
           </div>
           <label class="switch"><input type="checkbox" id="companyFirmaNoConformeToggle"><span class="track"></span></label>
         </div>
+
+        <div style="margin-top:20px;">
+          <button class="btn-primary" id="configAplicarBtn" style="width:auto;">Aplicar cambios</button>
+        </div>
       </div>
 
     </main>
@@ -446,6 +468,17 @@
     <div class="btnrow">
       <button class="btn-primary" id="confirmarEmpresaConfirmar" style="width:auto;">Confirmar</button>
       <button class="logout" id="confirmarEmpresaCancelar" style="width:auto;">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="configSalirModal" style="display:none;position:fixed;inset:0;background:rgba(15,42,68,.6);z-index:60;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:24px;">
+    <h2 style="margin:0 0 10px;font-size:16px;">Cambios sin guardar</h2>
+    <p class="sub" style="margin-bottom:20px;">Tenés cambios en Configuración que todavía no se guardaron. ¿Querés aplicarlos antes de salir?</p>
+    <div class="btnrow">
+      <button class="btn-primary" id="configSalirAplicar" style="width:auto;">Aplicar cambios</button>
+      <button class="logout" id="configSalirCancelar" style="width:auto;">Cancelar</button>
     </div>
   </div>
 </div>
@@ -534,6 +567,9 @@ const mailInput = document.getElementById('mail');
 // recordamos el último mail usado (nunca la contraseña) para no retipearlo cada vez
 const mailGuardado = localStorage.getItem('recibos_ultimo_mail');
 if(mailGuardado) mailInput.value = mailGuardado;
+
+document.getElementById('mail').addEventListener('keydown', (e) => { if(e.key === 'Enter') loginBtn.click(); });
+document.getElementById('pass').addEventListener('keydown', (e) => { if(e.key === 'Enter') loginBtn.click(); });
 
 loginBtn.addEventListener('click', async () => {
   const email = mailInput.value.trim();
@@ -675,6 +711,9 @@ function construirNav(){
   if(currentUserRol === 'superadmin'){
     construirGrupoEmpresas(cont);
     construirGrupoUsuarios(cont);
+    construirGrupoGenerico(cont, 'recibos', 'Visualización de recibos', [
+      { target: 'superadmin-recibos-selector', label: 'Seleccionar empresa' },
+    ]);
   } else if(currentUserRol === 'admin_operativo'){
     construirGrupoGenerico(cont, 'empleados', 'Empleados', [
       { header: 'Gestión de empleados' },
@@ -713,7 +752,7 @@ function agregarNavItem(cont, viewId, label){
     document.getElementById('sidebarNav').classList.remove('collapsed');
     document.querySelectorAll('.nav-item, .nav-subitem').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    mostrarVista(viewId);
+    irAVista(viewId);
   });
   cont.appendChild(btn);
   return btn;
@@ -746,7 +785,7 @@ function construirGrupoGenerico(cont, iconKey, label, items){
     btn.addEventListener('click', () => {
       document.querySelectorAll('.nav-item, .nav-subitem').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      mostrarVista(btn.dataset.target);
+      irAVista(btn.dataset.target);
     });
   });
 
@@ -783,7 +822,7 @@ function construirGrupoEmpresas(cont){
     btn.addEventListener('click', () => {
       document.querySelectorAll('.nav-item, .nav-subitem').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      mostrarVista(btn.dataset.target);
+      irAVista(btn.dataset.target);
     });
   });
 
@@ -815,7 +854,7 @@ function construirGrupoUsuarios(cont){
     btn.addEventListener('click', () => {
       document.querySelectorAll('.nav-item, .nav-subitem').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      mostrarVista(btn.dataset.target);
+      irAVista(btn.dataset.target);
     });
   });
 
@@ -848,9 +887,31 @@ function mostrarVista(nombre){
   if(nombre === 'recibos-historial'){ cargarRecibosHistorial(); }
   if(nombre === 'reportes'){ if(empresaSeleccionada){ cargarEmpleadosBase(); cargarReportes(); } }
   if(nombre === 'configuracion'){ cargarConfigEmpresa(); }
+  if(nombre === 'superadmin-recibos-selector'){ cargarSuperadminRecibosSelector(); }
+
+  if(currentUserRol === 'superadmin'){
+    document.getElementById('workspaceIndicator').style.display =
+      (empresaSeleccionada && (nombre === 'recibos-recientes' || nombre === 'recibos-historial')) ? 'flex' : 'none';
+  }
 }
 
 function normalizeCuit(c){ return String(c || '').replace(/\D/g, ''); }
+
+// Sanitiza cualquier dato que venga de la base (o de un Excel importado) antes de
+// meterlo en un template de HTML — sin esto, un nombre/mail "raro" podría ejecutarse
+// como código en la pantalla de quien lo mira después.
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// Para cuando un dato variable va como argumento de texto dentro de un onclick="..."
+// (ej: onclick="fn('${escapeJsAttr(valor)}')") — hay que escapar dos capas: primero
+// que no rompa la cadena de JS entre comillas simples, después que no rompa el atributo HTML.
+function escapeJsAttr(s){
+  return escapeHtml(String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+}
 
 async function cargarEmpresasActivas(){
   const err = document.getElementById('empresaActivasErr');
@@ -859,7 +920,7 @@ async function cargarEmpresasActivas(){
     .from('empresas').select('nombre, cuit').eq('activa', true).order('nombre');
   if(error){ err.textContent = 'No se pudo cargar: ' + error.message; err.style.display = 'block'; return; }
   document.getElementById('empresasActivasBody').innerHTML = data.map(e =>
-    `<tr><td>${e.nombre}</td><td class="mono">${e.cuit}</td></tr>`).join('')
+    `<tr><td>${escapeHtml(e.nombre)}</td><td class="mono">${escapeHtml(e.cuit)}</td></tr>`).join('')
     || '<tr><td colspan="2" style="color:var(--slate);text-align:center;">No hay empresas activas.</td></tr>';
 }
 
@@ -870,7 +931,7 @@ async function cargarEmpresasInactivas(){
     .from('empresas').select('nombre, cuit').eq('activa', false).order('nombre');
   if(error){ err.textContent = 'No se pudo cargar: ' + error.message; err.style.display = 'block'; return; }
   document.getElementById('empresasInactivasBody').innerHTML = data.map(e =>
-    `<tr><td>${e.nombre}</td><td class="mono">${e.cuit}</td></tr>`).join('')
+    `<tr><td>${escapeHtml(e.nombre)}</td><td class="mono">${escapeHtml(e.cuit)}</td></tr>`).join('')
     || '<tr><td colspan="2" style="color:var(--slate);text-align:center;">No hay empresas de baja.</td></tr>';
 }
 
@@ -887,8 +948,8 @@ async function cargarEmpresasDarBaja(){
   }
 
   document.getElementById('empresasDarBajaBody').innerHTML = data.map(e => `<tr>
-      <td>${e.nombre}</td>
-      <td class="mono">${e.cuit}</td>
+      <td>${escapeHtml(e.nombre)}</td>
+      <td class="mono">${escapeHtml(e.cuit)}</td>
       <td style="text-align:right"><button class="ghost" onclick="toggleEmpresaActiva('${e.id}', true)">Dar de baja</button></td>
     </tr>`).join('') || '<tr><td colspan="3" style="color:var(--slate);text-align:center;">No hay empresas activas.</td></tr>';
 }
@@ -906,8 +967,8 @@ async function cargarEmpresasReactivar(){
   }
 
   document.getElementById('empresasReactivarBody').innerHTML = data.map(e => `<tr>
-      <td>${e.nombre}</td>
-      <td class="mono">${e.cuit}</td>
+      <td>${escapeHtml(e.nombre)}</td>
+      <td class="mono">${escapeHtml(e.cuit)}</td>
       <td style="text-align:right"><button class="ghost" onclick="toggleEmpresaActiva('${e.id}', false)">Reactivar</button></td>
     </tr>`).join('') || '<tr><td colspan="3" style="color:var(--slate);text-align:center;">No hay empresas de baja.</td></tr>';
 }
@@ -927,6 +988,51 @@ async function toggleEmpresaActiva(id, activaActual){
 }
 window.toggleEmpresaActiva = toggleEmpresaActiva;
 
+async function cargarSuperadminRecibosSelector(){
+  const err = document.getElementById('superadminRecibosSelectorErr');
+  err.style.display = 'none';
+  const { data, error } = await supabaseClient
+    .from('empresas').select('id, nombre, cuit').eq('activa', true).order('nombre');
+
+  const cont = document.getElementById('superadminRecibosSelectorLista');
+  cont.innerHTML = '';
+
+  if(error){
+    err.textContent = 'No se pudieron cargar las empresas: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+  if(!data || data.length === 0){
+    cont.innerHTML = '<p class="sub">No hay empresas activas.</p>';
+    return;
+  }
+  data.forEach(e => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-secondary';
+    btn.style.textAlign = 'left';
+    btn.style.display = 'flex';
+    btn.style.justifyContent = 'space-between';
+    btn.innerHTML = `<span>${escapeHtml(e.nombre)}</span><span class="mono" style="color:var(--slate);">${escapeHtml(e.cuit)}</span>`;
+    btn.addEventListener('click', () => entrarEmpresaSuperadminRecibos(e.id, e.nombre));
+    cont.appendChild(btn);
+  });
+}
+
+function entrarEmpresaSuperadminRecibos(id, nombre){
+  empresaSeleccionada = id;
+  document.getElementById('workspaceLabel').textContent = 'Visualizando:';
+  document.getElementById('empresaActualNombre').textContent = nombre;
+  const cambiarBtn = document.getElementById('cambiarEmpresaBtn');
+  cambiarBtn.textContent = 'Cambiar de empresa';
+  cambiarBtn.style.display = 'inline-block';
+  cambiarBtn.onclick = () => irAVista('superadmin-recibos-selector');
+  document.querySelectorAll('.nav-item, .nav-subitem').forEach(b => b.classList.remove('active'));
+  irAVista('recibos-recientes');
+}
+
+document.getElementById('recientesVerHistorialBtn').addEventListener('click', () => irAVista('recibos-historial'));
+document.getElementById('historialVerRecientesBtn').addEventListener('click', () => irAVista('recibos-recientes'));
+
 let empresaPendienteDeCrear = null;
 
 document.getElementById('crearEmpresaBtn').addEventListener('click', () => {
@@ -941,7 +1047,7 @@ document.getElementById('crearEmpresaBtn').addEventListener('click', () => {
 
   empresaPendienteDeCrear = { nombre, cuit };
   document.getElementById('confirmarEmpresaTexto').innerHTML =
-    `¿Confirmás crear la empresa <b>${nombre}</b>, CUIT <span class="mono">${cuit}</span>?`;
+    `¿Confirmás crear la empresa <b>${escapeHtml(nombre)}</b>, CUIT <span class="mono">${escapeHtml(cuit)}</span>?`;
   document.getElementById('confirmarEmpresaModal').style.display = 'flex';
 });
 
@@ -981,7 +1087,7 @@ document.getElementById('confirmarEmpresaConfirmar').addEventListener('click', a
 
 async function abrirAsignarEmpresaModal(empresaId, empresaNombre){
   document.getElementById('asignarEmpresaTexto').innerHTML =
-    `La empresa <b>${empresaNombre}</b> ya está creada. ¿Querés asignarla a algún usuario ahora?`;
+    `La empresa <b>${escapeHtml(empresaNombre)}</b> ya está creada. ¿Querés asignarla a algún usuario ahora?`;
   const { data: usuarios } = await supabaseClient
     .from('perfiles')
     .select('id, email, rol')
@@ -995,7 +1101,7 @@ async function abrirAsignarEmpresaModal(empresaId, empresaNombre){
   } else {
     sel.disabled = false;
     const rolLabel = { admin_operativo: 'Admin operativo', visualizador: 'Visualizador' };
-    sel.innerHTML = usuarios.map(u => `<option value="${u.id}">${u.email} (${rolLabel[u.rol] || u.rol})</option>`).join('');
+    sel.innerHTML = usuarios.map(u => `<option value="${u.id}">${escapeHtml(u.email)} (${rolLabel[u.rol] || u.rol})</option>`).join('');
   }
   document.getElementById('asignarEmpresaModal').dataset.empresaId = empresaId;
   document.getElementById('asignarEmpresaModal').style.display = 'flex';
@@ -1020,6 +1126,7 @@ document.getElementById('asignarEmpresaConfirmar').addEventListener('click', asy
 let empresaSeleccionada = null;
 
 let empresaConfigActual = { bloquear_si_no_firma: false, dias_aviso_automatico: 0, marca_agua_habilitada: true, permitir_firma_no_conforme: false };
+let configDirty = false;
 
 async function cargarConfigEmpresa(){
   if(!empresaSeleccionada) return;
@@ -1031,33 +1138,92 @@ async function cargarConfigEmpresa(){
   if(!data) return;
   empresaConfigActual = data;
   empresaActualDiasAviso = data.dias_aviso_automatico;
+  configDirty = false;
 
   if(currentUserRol === 'admin_operativo'){
+    const diasHabilitado = data.dias_aviso_automatico > 0;
     document.getElementById('companyBloqueoToggle').checked = data.bloquear_si_no_firma;
-    document.getElementById('companyDiasAviso').value = data.dias_aviso_automatico;
+    document.getElementById('companyAvisoAutomaticoToggle').checked = diasHabilitado;
+    document.getElementById('diasAvisoWrap').style.display = diasHabilitado ? 'flex' : 'none';
+    document.getElementById('companyDiasAviso').value = diasHabilitado ? data.dias_aviso_automatico : '';
     document.getElementById('companyMarcaAguaToggle').checked = data.marca_agua_habilitada;
     document.getElementById('companyFirmaNoConformeToggle').checked = data.permitir_firma_no_conforme;
   }
 }
 
-document.getElementById('companyBloqueoToggle').addEventListener('change', async function(){
+document.getElementById('companyBloqueoToggle').addEventListener('change', function(){
   empresaConfigActual.bloquear_si_no_firma = this.checked;
-  await supabaseClient.from('empresas').update({ bloquear_si_no_firma: this.checked }).eq('id', empresaSeleccionada);
+  configDirty = true;
 });
-document.getElementById('companyDiasAviso').addEventListener('change', async function(){
-  const dias = Math.max(0, parseInt(this.value, 10) || 0);
+document.getElementById('companyAvisoAutomaticoToggle').addEventListener('change', function(){
+  const diasWrap = document.getElementById('diasAvisoWrap');
+  const diasInput = document.getElementById('companyDiasAviso');
+  if(this.checked){
+    diasWrap.style.display = 'flex';
+    const dias = Math.max(1, parseInt(diasInput.value, 10) || 3);
+    diasInput.value = dias;
+    empresaConfigActual.dias_aviso_automatico = dias;
+  } else {
+    diasWrap.style.display = 'none';
+    empresaConfigActual.dias_aviso_automatico = 0;
+  }
+  configDirty = true;
+});
+document.getElementById('companyDiasAviso').addEventListener('change', function(){
+  const dias = Math.max(1, parseInt(this.value, 10) || 1);
   this.value = dias;
-  empresaActualDiasAviso = dias;
   empresaConfigActual.dias_aviso_automatico = dias;
-  await supabaseClient.from('empresas').update({ dias_aviso_automatico: dias }).eq('id', empresaSeleccionada);
+  configDirty = true;
 });
-document.getElementById('companyMarcaAguaToggle').addEventListener('change', async function(){
+document.getElementById('companyMarcaAguaToggle').addEventListener('change', function(){
   empresaConfigActual.marca_agua_habilitada = this.checked;
-  await supabaseClient.from('empresas').update({ marca_agua_habilitada: this.checked }).eq('id', empresaSeleccionada);
+  configDirty = true;
 });
-document.getElementById('companyFirmaNoConformeToggle').addEventListener('change', async function(){
+document.getElementById('companyFirmaNoConformeToggle').addEventListener('change', function(){
   empresaConfigActual.permitir_firma_no_conforme = this.checked;
-  await supabaseClient.from('empresas').update({ permitir_firma_no_conforme: this.checked }).eq('id', empresaSeleccionada);
+  configDirty = true;
+});
+
+async function guardarConfigEmpresa(){
+  const { error } = await supabaseClient.from('empresas').update({
+    bloquear_si_no_firma: empresaConfigActual.bloquear_si_no_firma,
+    dias_aviso_automatico: empresaConfigActual.dias_aviso_automatico,
+    marca_agua_habilitada: empresaConfigActual.marca_agua_habilitada,
+    permitir_firma_no_conforme: empresaConfigActual.permitir_firma_no_conforme
+  }).eq('id', empresaSeleccionada);
+  if(error){ alert('No se pudieron guardar los cambios: ' + error.message); return false; }
+  empresaActualDiasAviso = empresaConfigActual.dias_aviso_automatico;
+  configDirty = false;
+  return true;
+}
+
+document.getElementById('configAplicarBtn').addEventListener('click', async function(){
+  if(await guardarConfigEmpresa()) toast('Cambios guardados.');
+});
+
+let configSalirDestino = null;
+
+function irAVista(nombre){
+  if(vistaActual === 'configuracion' && configDirty && nombre !== 'configuracion'){
+    configSalirDestino = nombre;
+    document.getElementById('configSalirModal').style.display = 'flex';
+    return;
+  }
+  mostrarVista(nombre);
+}
+
+document.getElementById('configSalirCancelar').addEventListener('click', () => {
+  configSalirDestino = null;
+  document.getElementById('configSalirModal').style.display = 'none';
+});
+
+document.getElementById('configSalirAplicar').addEventListener('click', async () => {
+  const ok = await guardarConfigEmpresa();
+  document.getElementById('configSalirModal').style.display = 'none';
+  if(!ok) return;
+  const destino = configSalirDestino;
+  configSalirDestino = null;
+  if(destino) mostrarVista(destino);
 });
 
 let empleadosActuales = []; // solo activos, de la empresa en la que se está trabajando
@@ -1111,9 +1277,9 @@ async function cargarEmpleadosVer(){
   body.innerHTML = empleadosActuales.map(e => {
     if(empleadosEnEdicion.has(e.id)){
       return `<tr>
-        <td><input type="text" id="editNombre_${e.id}" value="${e.nombre}" style="margin:0;"></td>
-        <td><input type="text" id="editCuil_${e.id}" value="${e.cuil}" class="mono" style="margin:0;"></td>
-        <td><input type="email" id="editMail_${e.id}" value="${e.mail}" style="margin:0;"></td>
+        <td><input type="text" id="editNombre_${e.id}" value="${escapeHtml(e.nombre)}" style="margin:0;"></td>
+        <td><input type="text" id="editCuil_${e.id}" value="${escapeHtml(e.cuil)}" class="mono" style="margin:0;"></td>
+        <td><input type="email" id="editMail_${e.id}" value="${escapeHtml(e.mail)}" style="margin:0;"></td>
         <td style="text-align:right;white-space:nowrap;">
           <button class="ghost" onclick="guardarEdicionEmpleado('${e.id}')">Guardar</button>
           <button class="ghost" onclick="cancelarEdicionEmpleado('${e.id}')">Cancelar</button>
@@ -1121,7 +1287,7 @@ async function cargarEmpleadosVer(){
       </tr>`;
     }
     return `<tr>
-      <td>${e.nombre}</td><td class="mono">${e.cuil}</td><td>${e.mail}</td>
+      <td>${escapeHtml(e.nombre)}</td><td class="mono">${escapeHtml(e.cuil)}</td><td>${escapeHtml(e.mail)}</td>
       <td style="text-align:right">
         ${currentUserRol === 'admin_operativo' ? `<button class="ghost" onclick="entrarEdicionEmpleado('${e.id}')" title="Editar">✏️</button>` : ''}
       </td>
@@ -1165,12 +1331,12 @@ async function cargarEmpleadosBaja(){
   const inactivos = empleadosTodos.filter(e => !e.activo);
 
   document.getElementById('empleadosBajaActivosBody').innerHTML = activos.map(e =>
-    `<tr><td>${e.nombre}</td><td class="mono">${e.cuil}</td>
+    `<tr><td>${escapeHtml(e.nombre)}</td><td class="mono">${escapeHtml(e.cuil)}</td>
       <td style="text-align:right"><button class="ghost" style="color:var(--red);" onclick="toggleEmpleadoActivo('${e.id}', true)">Dar de baja</button></td></tr>`
   ).join('') || '<tr><td colspan="3" style="color:var(--slate);text-align:center;">No hay empleados activos.</td></tr>';
 
   document.getElementById('empleadosBajaInactivosBody').innerHTML = inactivos.map(e =>
-    `<tr><td>${e.nombre}</td><td class="mono">${e.cuil}</td>
+    `<tr><td>${escapeHtml(e.nombre)}</td><td class="mono">${escapeHtml(e.cuil)}</td>
       <td style="text-align:right"><button class="ghost" onclick="toggleEmpleadoActivo('${e.id}', false)">Reactivar</button></td></tr>`
   ).join('') || '<tr><td colspan="3" style="color:var(--slate);text-align:center;">No hay empleados de baja.</td></tr>';
 }
@@ -1242,7 +1408,7 @@ function renderReportes(){
         ? `${r.ultimo_aviso_tipo} — ${new Date(r.ultimo_aviso_en).toLocaleDateString('es-AR')}`
         : 'Sin avisos';
     }
-    return `<tr><td>${e.nombre}</td><td>${estadoBadge}</td><td>${avisoTxt}</td></tr>`;
+    return `<tr><td>${escapeHtml(e.nombre)}</td><td>${estadoBadge}</td><td>${avisoTxt}</td></tr>`;
   }).join('');
 
   const total = empleadosActuales.length || 1;
@@ -1416,7 +1582,7 @@ function mostrarPreviewExcel(){
       : f.estado === 'existente'
         ? '<span class="badge" style="background:var(--paper);color:var(--slate);">Ya existía</span>'
         : '<span class="badge badge-off">Conflicto</span>';
-    return `<tr><td>${f.nombre || '—'}</td><td>${f.cuil || '—'}</td><td>${f.mail || '—'}</td><td>${badge}</td></tr>`;
+    return `<tr><td>${escapeHtml(f.nombre) || '—'}</td><td>${escapeHtml(f.cuil) || '—'}</td><td>${escapeHtml(f.mail) || '—'}</td><td>${badge}</td></tr>`;
   }).join('');
 
   document.getElementById('excelResumen').textContent =
@@ -1614,14 +1780,14 @@ function mostrarPreviewPdf(){
     const emp = empleadosActuales.find(e => e.id === g.empId);
     if(emp) identificados++; else sinIdentificar++;
     const opciones = empleadosActuales.map(e =>
-      `<option value="${e.id}" ${e.id === g.empId ? 'selected' : ''}>${e.nombre}</option>`
+      `<option value="${e.id}" ${e.id === g.empId ? 'selected' : ''}>${escapeHtml(e.nombre)}</option>`
     ).join('');
     const badge = emp
       ? '<span class="badge badge-ok">Identificado</span>'
       : '<span class="badge badge-off">Sin identificar</span>';
     return `<tr>
       <td>${g.inicio === g.fin ? 'Hoja ' + g.inicio : 'Hojas ' + g.inicio + '–' + g.fin}</td>
-      <td>${emp ? emp.nombre : '—'}</td>
+      <td>${emp ? escapeHtml(emp.nombre) : '—'}</td>
       <td>${badge}</td>
       <td><select onchange="corregirGrupoPdf(${idx}, this.value)"><option value="">Sin identificar</option>${opciones}</select></td>
     </tr>`;
@@ -1647,7 +1813,7 @@ async function generarBytesConMarca(bytesLimpio){
   const font = await wmDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
   wmDoc.getPages().forEach(pg => {
     const { width, height } = pg.getSize();
-    pg.drawText('NO FIRMADO - SOLO VISUALIZACION', {
+    pg.drawText('DOCUMENTO PENDIENTE DE FIRMA', {
       x: width * 0.08, y: height * 0.45, size: Math.max(18, width * 0.06),
       font, color: PDFLib.rgb(0.7, 0.15, 0.1), opacity: 0.35, rotate: PDFLib.degrees(35),
     });
@@ -1716,12 +1882,15 @@ let recibosHistorialData = [];
 
 function filaRecibo(r, nombrePorId){
   const estado = r.firmado ? '<span class="sello-firmado">✓ Firmado</span>' : '<span class="sello-pendiente">Pendiente</span>';
-  return `<tr><td>${nombrePorId[r.empleado_id] || '—'}</td><td>${estado}</td><td style="text-align:right"><button class="ghost" onclick="verRecibo('${r.id}')">Ver</button></td></tr>`;
+  return `<tr><td>${escapeHtml(nombrePorId[r.empleado_id]) || '—'}</td><td>${estado}</td><td style="text-align:right"><button class="ghost" onclick="verRecibo('${r.id}')">Ver</button></td></tr>`;
 }
 
 let recibosVistaRecientes = [];
 
 async function cargarRecibosRecientes(){
+  document.getElementById('avisoManualRecientesBtn').style.display = currentUserRol === 'admin_operativo' ? 'inline-block' : 'none';
+  document.getElementById('recientesVerHistorialBtn').style.display = currentUserRol === 'superadmin' ? 'inline-block' : 'none';
+
   const recibos = await obtenerTodosLosRecibos();
   const nombrePorId = {}; empleadosActuales.forEach(e => nombrePorId[e.id] = e.nombre);
 
@@ -1748,7 +1917,7 @@ async function cargarRecibosRecientes(){
 
   const wrap = document.getElementById('recibosPendientesAnterioresWrap');
   wrap.innerHTML = Object.keys(porPeriodo).map(periodo => `
-    <h2 style="font-size:14px;margin-top:24px;">Pendientes ${periodo}</h2>
+    <h2 style="font-size:14px;margin-top:24px;">Pendientes ${escapeHtml(periodo)}</h2>
     <table>
       <thead><tr><th>Empleado</th><th>Estado</th><th></th></tr></thead>
       <tbody>${porPeriodo[periodo].map(r => filaRecibo(r, nombrePorId)).join('')}</tbody>
@@ -1773,6 +1942,8 @@ document.getElementById('avisoManualRecientesBtn').addEventListener('click', asy
 });
 
 async function cargarRecibosHistorial(){
+  document.getElementById('historialVerRecientesWrap').style.display = currentUserRol === 'superadmin' ? 'flex' : 'none';
+
   const recibos = await obtenerTodosLosRecibos();
   recibosHistorialData = recibos;
   const sel = document.getElementById('historialPeriodoSelect');
@@ -1792,7 +1963,7 @@ async function cargarRecibosHistorial(){
     return;
   }
 
-  sel.innerHTML = periodos.map(p => `<option value="${p}">${p}</option>`).join('');
+  sel.innerHTML = periodos.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
   mostrarHistorialDePeriodo(sel.value);
 }
 
@@ -1946,30 +2117,30 @@ async function cargarUsuarios(){
         </select>`;
 
       const chips = asignadas.map(e =>
-        `<span class="chip">${e.nombre} <button type="button" class="chip-x" onclick="quitarAsignacion('${u.id}','${e.id}')" title="Quitar">×</button></span>`
+        `<span class="chip">${escapeHtml(e.nombre)} <button type="button" class="chip-x" onclick="quitarAsignacion('${u.id}','${e.id}')" title="Quitar">×</button></span>`
       ).join('');
       const disponibles = todasLasEmpresasActivas.filter(e => !asignadas.some(a => a.id === e.id));
       const selectAgregar = disponibles.length > 0
         ? `<select class="chip-add" onchange="agregarAsignacion('${u.id}', this.value); this.selectedIndex=0;">
              <option value="">+ empresa</option>
-             ${disponibles.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('')}
+             ${disponibles.map(e => `<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join('')}
            </select>`
         : '';
       colEmpresas = `<div class="chiplist">${chips}${selectAgregar}</div>`;
       accionesExtra = `<button class="ghost" onclick="salirEdicionUsuario('${u.id}')">Listo</button>`;
     } else {
       colRol = rolLabel[u.rol] || u.rol;
-      colEmpresas = asignadas.map(e => e.nombre).join(', ') || '—';
+      colEmpresas = escapeHtml(asignadas.map(e => e.nombre).join(', ')) || '—';
       accionesExtra = `<button class="ghost" onclick="entrarEdicionUsuario('${u.id}')">Editar</button>`;
     }
 
     return `<tr>
-      <td>${u.email || '(sin mail guardado)'}</td>
+      <td>${escapeHtml(u.email) || '(sin mail guardado)'}</td>
       <td>${colRol}</td>
       <td>${colEmpresas}</td>
       <td style="text-align:right">
         ${accionesExtra}
-        <button class="ghost" style="color:var(--red);" onclick="eliminarUsuario('${u.id}', '${(u.email||'').replace(/'/g,"\\'")}')">Eliminar</button>
+        <button class="ghost" style="color:var(--red);" onclick="eliminarUsuario('${u.id}', '${escapeJsAttr(u.email)}')">Eliminar</button>
       </td>
     </tr>`;
   }).join('');
@@ -2021,7 +2192,7 @@ document.getElementById('guardarUsuarioBtn').addEventListener('click', () => {
   if(!mail.includes('@')){ err.textContent = 'Poné un mail válido.'; err.style.display = 'block'; return; }
 
   nuevoUsuarioPendiente = { mail, rol, empresaIds: [] };
-  document.getElementById('preguntaAsignarTexto').innerHTML = `Vas a crear a <b>${mail}</b>. ¿Querés asignarle alguna empresa ahora?`;
+  document.getElementById('preguntaAsignarTexto').innerHTML = `Vas a crear a <b>${escapeHtml(mail)}</b>. ¿Querés asignarle alguna empresa ahora?`;
   document.getElementById('preguntaAsignarModal').style.display = 'flex';
 });
 
@@ -2039,7 +2210,7 @@ document.getElementById('preguntaAsignarSi').addEventListener('click', async () 
   } else {
     cont.innerHTML = data.map(e =>
       `<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;padding:5px 0;font-weight:400;">
-        <input type="checkbox" value="${e.id}" data-nombre="${e.nombre}" style="width:auto;margin:0;"> ${e.nombre}
+        <input type="checkbox" value="${e.id}" data-nombre="${escapeHtml(e.nombre)}" style="width:auto;margin:0;"> ${escapeHtml(e.nombre)}
       </label>`
     ).join('');
   }
@@ -2065,11 +2236,11 @@ function abrirConfirmacionFinal(){
 
   if(empresaIds.length === 0){
     document.getElementById('confirmarCrearUsuarioTexto').innerHTML =
-      `Estás creando el usuario <b>${mail}</b> sin ninguna empresa asignada. ¿Confirmás el envío de la invitación igual?`;
+      `Estás creando el usuario <b>${escapeHtml(mail)}</b> sin ninguna empresa asignada. ¿Confirmás el envío de la invitación igual?`;
     volverBtn.style.display = 'inline-block';
   } else {
     document.getElementById('confirmarCrearUsuarioTexto').innerHTML =
-      `Estás creando el usuario <b>${mail}</b> con estas empresas asignadas: <b>${empresaNombres.join(', ')}</b>. ¿Confirmás el envío de la invitación?`;
+      `Estás creando el usuario <b>${escapeHtml(mail)}</b> con estas empresas asignadas: <b>${escapeHtml(empresaNombres.join(', '))}</b>. ¿Confirmás el envío de la invitación?`;
     volverBtn.style.display = 'none';
   }
   document.getElementById('confirmarCrearUsuarioModal').style.display = 'flex';
