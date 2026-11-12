@@ -1994,7 +1994,8 @@ async function verRecibo(reciboId){
   document.getElementById('reciboModalTitulo').textContent = `Recibo de ${emp ? emp.nombre : ''} — ${recibo.mes}`;
 
   const puedeVerLimpio = recibo.firmado || currentUserRol === 'admin_operativo';
-  const path = puedeVerLimpio ? recibo.archivo_limpio_path : recibo.archivo_marca_path;
+  const mostrarSinMarca = puedeVerLimpio || !empresaConfigActual.marca_agua_habilitada;
+  const path = mostrarSinMarca ? recibo.archivo_limpio_path : recibo.archivo_marca_path;
   const { data: signed } = await supabaseClient.storage.from('Recibos').createSignedUrl(path, 600);
   document.getElementById('reciboIframe').src = signed ? signed.signedUrl + '#toolbar=0&navpanes=0' : '';
 
